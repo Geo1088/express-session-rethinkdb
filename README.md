@@ -4,18 +4,22 @@ RethinkDB session store for Express 4.x
 
 ## Installation
 
+```bash
+# yarn:
+yarn add @geo1088/express-session-rethinkdb
+# npm:
+npm install --save @geo1088/express-session-rethinkdb
 ```
-npm install express-session-rethinkdb --save
-```
 
-## Getting started
+## Dependencies
 
-Note that you must already have Express Session already installed (`npm install express-session --save`). Also this specific package uses `rethinkdbdash` driver which has more advanced features.
-*See [rethinkdbdash](https://github.com/neumino/rethinkdbdash)*
+- [`express-session`](https://www.npmjs.com/package/express-session) (duh)
+- [`rethinkdbdash`](https://www.npmjs.com/package/rethinkdbdash) for connecting to RethinkDB. **The official driver is not supported.**
 
-```javascript
+### Without an existing database connection
+
+```js
 var express = require('express');
-var cookie = require('cookie-parser');
 var session = require('express-session');
 var RDBStore = require('express-session-rethinkdb')(session);
 
@@ -41,7 +45,6 @@ var rdbStore = new RDBStore({
   debug: false
 });
 
-app.use(cookie());
 app.use(session({
   key: 'sid',
   secret: 'my5uperSEC537(key)!',
@@ -51,54 +54,30 @@ app.use(session({
 
 // the rest of your server code..
 ```
-###With rethinkdbdash connection 
+
+### With an existing connection
 
 ```javascript
-var express = require('express');
-var cookie = require('cookie-parser');
-var session = require('express-session');
-var RDBStore = require('express-session-rethinkdb')(session);
-var rethinkdb = require('rethinkdbdash');
+const express = require('express');
+const session = require('express-session');
+const RDBStore = require('express-session-rethinkdb')(session);
 
-var r = new rethinkdb({db: "test"}) //normal rethinkdbdash connection can be used across your project
-var app = express();
-var rdbStore = new RDBStore({
+const r = require('rethinkdbdash')({
+  // Your database configuration...
+  db: "test"
+})
+
+const app = express();
+const rdbStore = new RDBStore({
+  // Pass a reference to your existing connection here
   connection: r,
+  // Other store configuration
   table: 'session',
   sessionTimeout: 86400000,
   flushInterval: 60000,
   debug: false
 });
 
-app.use(cookie());
-app.use(session({
-  key: 'sid',
-  secret: 'my5uperSEC537(key)!',
-  cookie: { maxAge: 860000 },
-  store: rdbStore
-}));
-
-// the rest of your server code..
-```
-###With Thinky 
-
-```javascript
-var express = require('express');
-var cookie = require('cookie-parser');
-var session = require('express-session');
-var RDBStore = require('express-session-rethinkdb')(session);
-var thinky = require('thinky')({db: "test"}); 
-
-var app = express();
-var rdbStore = new RDBStore({
-  connection: thinky.r,
-  table: 'session',
-  sessionTimeout: 86400000,
-  flushInterval: 60000,
-  debug: false
-});
-
-app.use(cookie());
 app.use(session({
   key: 'sid',
   secret: 'my5uperSEC537(key)!',
@@ -109,34 +88,33 @@ app.use(session({
 // the rest of your server code..
 ```
 
-##Constructor options
+###### TODO: there was a Thinky example here. I don't know what that is, so I removed it.
 
-###connection
+## Constructor options
+
+### `connection`
 rethinkdbdash connection instance.
 *See [RethinkDB's doc](http://www.rethinkdb.com/api/javascript/#connect)*
 *Also see [rethinkdbdash](https://github.com/neumino/rethinkdbdash)*
 
-###connectOptions
+### `connectOptions`
 Options for connecting to the database server. (if connection is set connectOptions will be ignored)
 *See [RethinkDB's doc](http://www.rethinkdb.com/api/javascript/#connect)*
 *Also see [rethinkdbdash](https://github.com/neumino/rethinkdbdash)*
 
-###table
+### `table`
 Name of the table in which session data will be stored.
 `Default: 'session'`
 
-###sessionTimeout
-If you do not set ```cookie.maxAge``` in ```session``` middleware, sessions will last until the user closes their browser.
+### `sessionTimeout`
+If you do not set `cookie.maxAge` in `session` middleware, sessions will last until the user closes their browser.
 However we cannot keep the session data infinitely (for size and security reasons).
 In this case, this setting defines the maximum length of a session, even if the user does not close their browser.
 `Default: 86400000` *1 day*
 
-###flushInterval
+### `flushInterval`
 RethinkDB does not yet provide an expiration function ( like ```SETEX``` for Redis ), so we have to remove the old expired sessions from the database intermittently. This is the time interval in milliseconds between flushing of expired sessions.
 `Default: 60000` *60 seconds*
-
-###debug
-If debug is enabled, this middleware will start using console.log() to print debug type messages for session get, set, and destroy. These are currently mostly geared toward the memory caching. It takes a ```true``` or ```false``` value. `Default: false`
 
 ## Attribution
 
@@ -144,7 +122,7 @@ If debug is enabled, this middleware will start using console.log() to print deb
 
 *Inspired by guillaumervls [Connect RethinkDB](https://github.com/guillaumervls/connect-rethinkdb)*
 
-##License
+## License
 
 The MIT License (MIT)
 
