@@ -1,96 +1,85 @@
-/*!
- *  Express Session RethinkDB
- *  MIT Licensed
- */
+// !
+// Express Session RethinkDB
+// MIT Licensed
 
-var rethinkdb = require('rethinkdbdash');
-var cache = require('memory-cache');
+'use strict';
 
-module.exports = function (session) {
-  var Store = session.Store;
+const RethinkDB = require('rethinkdbdash');
+const cache = require('memory-cache');
 
-  function RethinkStore(options) {
-    options = options || {};
-    options.connectOptions = options.connectOptions || {};
+module.exports = session => class RethinkStore extends session.Store {
+	constructor (options) {
+		options = options || {};
+		options.connectOptions = options.connectOptions || {};
 
-    Store.call(this, options);
+		super(options);
 
-    r = options.connection || new rethinkdb(options.connectOptions);
+		this.r = options.connection || new RethinkDB(options.connectOptions);
 
-    this.emit('connect');
-    this.sessionTimeout = options.sessionTimeout || 86400000; // 1 day
-    this.table = options.table || 'session';
-    this.debug = options.debug || false;
-    setInterval( function() {
-      try {
-        r.table(this.table).filter( r.row('expires').lt(r.now().toEpochTime().mul(1000)) ).delete().run(function(err, user) {
-          return null;
-        });
-      }
-      catch (error) {
-        console.error( error );
-        return null;
-      }
-    }.bind( this ), options.flushInterval || 60000 );
-  }
+		this.emit('connect');
+		this.sessionTimeout = options.sessionTimeout || 86400000; // 1 day
+		this.table = options.table || 'session';
+		this.debug = options.debug || false;
+		setInterval(() => {
+			try {
+				this.r.table(this.table).filter(this.r.row('expires').lt(this.r.now().toEpochTime().mul(1000))).delete().run(_ => null);
+			} catch (error) {
+				console.error(error);
+				return null;
+			}
+		}, options.flushInterval || 60000);
+	}
 
-  RethinkStore.prototype = new Store();
+	// Get Session
+	get (sid, fn) {
+		const sdata = cache.get(`sess-${sid}`);
+		if (sdata) {
+			if (this.debug) {
+				console.log('SESSION: (get)', JSON.parse(sdata.session));
+			}
+			return fn(null, JSON.parse(sdata.session));
+		}
+		this.r.table(this.table).get(sid).run().then(data => fn(null, data ? JSON.parse(data.session) : null)).error(err => fn(err));
+	}
 
-  // Get Session
-  RethinkStore.prototype.get = function (sid, fn) {
-    var sdata = cache.get('sess-'+sid);
-    if (sdata) {
-      if( this.debug ){ console.log( 'SESSION: (get)', JSON.parse(sdata.session) ) };
-      return fn(null, JSON.parse(sdata.session));
-    } else {
-        r.table(this.table).get(sid).run().then(function (data) {
-          return fn(null, data ? JSON.parse(data.session) : null);
-        }).error(function (err) {
-          return fn(err);
-        });
-    }
-  };
+	// Set Session
+	set (sid, sess, fn) {
+		const sessionToStore = {
+			id: sid,
+			expires: new Date().getTime() + (sess.cookie.originalMaxAge || this.sessionTimeout),
+			session: JSON.stringify(sess),
+		};
 
-  // Set Session
-  RethinkStore.prototype.set = function (sid, sess, fn) {
-    var sessionToStore = {
-      id: sid,
-      expires: new Date().getTime() + (sess.cookie.originalMaxAge || this.sessionTimeout),
-      session: JSON.stringify(sess)
-    };
+		this.r.table(this.table).insert(sessionToStore, {conflict: 'replace', returnChanges: true}).run().then(data => {
+			let sdata = null;
+			if (data.changes[0] != null) {
+				sdata = data.changes[0].new_val || null;
+			}
 
-    r.table(this.table).insert(sessionToStore, { conflict: 'replace', returnChanges: true }).run().then(function (data) {
-      var sdata = null;
-      if(data.changes[0] != null)
-        sdata = data.changes[0].new_val || null;
+			if (sdata) {
+				if (this.debug) {
+					console.log('SESSION: (set)', sdata.id);
+				}
+				cache.put(`sess-${sdata.id}`, sdata, 30000);
+			}
+			if (typeof fn === 'function') {
+				return fn();
+			}
+			return null;
+		}).error(err => fn(err));
+	}
 
-      if (sdata){
-          if (this.debug){ console.log( 'SESSION: (set)', sdata.id ); }
-          cache.put( 'sess-'+ sdata.id, sdata, 30000 );
-      }
-      if (typeof fn === 'function') {
-        return fn();
-      }
-      else
-        return null
-    }).error(function (err) {
-      return fn(err);
-    });
-  };
-
-  // Destroy Session
-  RethinkStore.prototype.destroy = function (sid, fn) {
-    if (this.debug){ console.log( 'SESSION: (destroy)', sid ); }
-    cache.del('sess-'+sid);
-    r.table(this.table).get(sid).delete().run().then(function (data) {
-      if (typeof fn === 'function'){
-        return fn();
-      }
-      else return null;
-    }).error(function (err) {
-      return fn(err);
-    });
-  };
-
-  return RethinkStore;
+	// Destroy Session
+	destroy (sid, fn) {
+		if (this.debug) {
+			console.log('SESSION: (destroy)', sid);
+		}
+		cache.del(`sess-${sid}`);
+		this.r.table(this.table).get(sid).delete().run().then(_ => {
+			if (typeof fn === 'function') {
+				return fn();
+			}
+			return null;
+		}).error(err => fn(err));
+	}
 };
