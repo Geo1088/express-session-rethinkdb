@@ -19,7 +19,6 @@ module.exports = session => class RethinkStore extends session.Store {
 		this.emit('connect');
 		this.sessionTimeout = options.sessionTimeout || 86400000; // 1 day
 		this.table = options.table || 'session';
-		this.debug = options.debug || false;
 		setInterval(() => {
 			try {
 				this.r.table(this.table).filter(this.r.row('expires').lt(this.r.now().toEpochTime().mul(1000))).delete().run(_ => null);
@@ -34,9 +33,6 @@ module.exports = session => class RethinkStore extends session.Store {
 	get (sid, fn) {
 		const sdata = cache.get(`sess-${sid}`);
 		if (sdata) {
-			if (this.debug) {
-				console.log('SESSION: (get)', JSON.parse(sdata.session));
-			}
 			return fn(null, JSON.parse(sdata.session));
 		}
 		this.r.table(this.table).get(sid).run().then(data => fn(null, data ? JSON.parse(data.session) : null)).error(err => fn(err));
@@ -57,9 +53,6 @@ module.exports = session => class RethinkStore extends session.Store {
 			}
 
 			if (sdata) {
-				if (this.debug) {
-					console.log('SESSION: (set)', sdata.id);
-				}
 				cache.put(`sess-${sdata.id}`, sdata, 30000);
 			}
 			if (typeof fn === 'function') {
@@ -71,9 +64,6 @@ module.exports = session => class RethinkStore extends session.Store {
 
 	// Destroy Session
 	destroy (sid, fn) {
-		if (this.debug) {
-			console.log('SESSION: (destroy)', sid);
-		}
 		cache.del(`sess-${sid}`);
 		this.r.table(this.table).get(sid).delete().run().then(_ => {
 			if (typeof fn === 'function') {
