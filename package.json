@@ -1,5 +1,5 @@
 {
-  "name": "express-session-rethinkdb",
+  "name": "@geo1088/express-session-rethinkdb",
   "version": "0.4.1",
   "description": "RethinkDB session store for Express 4.x",
   "repository": {
