@@ -1,7 +1,3 @@
-// !
-// Express Session RethinkDB
-// MIT Licensed
-
 'use strict';
 
 const RethinkDB = require('rethinkdbdash');
