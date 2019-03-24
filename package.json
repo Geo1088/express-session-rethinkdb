@@ -1,11 +1,8 @@
 {
   "name": "@geo1088/express-session-rethinkdb",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "RethinkDB session store for Express 4.x",
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/armenfilipetyan/express-session-rethinkdb.git"
-  },
+  "repository": "https://github.com/Geo1088/express-session-rethinkdb.git",
   "keywords": [
     "expressjs",
     "session",
@@ -16,6 +13,9 @@
     "connect"
   ],
   "author": "armenfilipetyan",
+  "contributors": [
+    "Geo1088"
+  ],
   "license": "MIT",
   "dependencies": {
     "memory-cache": "^0.1.4",
